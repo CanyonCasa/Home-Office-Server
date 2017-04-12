@@ -1,11 +1,12 @@
 # Home Office Server
 
-## Keywords:	Raspberry Pi, RPi, small business, office, server, network, Kerberos login, domain, DNS server, DHCP server, Samba server, Active Directory, file and printer sharing, Linux, Raspian, open source.
+*Keywords:	Raspberry Pi, RPi, small business, office, server, network, Kerberos login, domain, DNS server, DHCP server, Samba server, Active Directory, file and printer sharing, Linux, Raspian, open source.
 
 ## Building a Raspberry Pi Office Network Server
 **_By Dave Campbell_**
 
-[./server.jpg] 
+![server](https://github.com/CanyonCasa/Home-Office-Server/blob/master/server.jpg)
+
 Figure 1: Raspberry Pi Server Hardware
 
 ### Abstract
