@@ -1,0 +1,4 @@
+#!/bin/bash
+# report dnsmasq DHCP leases...
+cat /var/lib/misc/dnsmasq.leases
+

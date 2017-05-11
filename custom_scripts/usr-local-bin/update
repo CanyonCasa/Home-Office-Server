@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# script to make OS updates
+
+e=`date +%s`
+d=`date`
+logRoot='/tmp/update'
+tmp="$logRoot.tmp"
+log="$logRoot.$e"
+host=`cat /etc/hostname`
+
+echo "$0 RUN $d with $PATH" > $log 2>&1
+echo "" >> $log 2>&1
+# run system update...
+apt-get update -y > $tmp 2>&1
+apt-get upgrade -y >> $tmp 2>&1
+echo "" >> $tmp 2>&1
+echo "" >> $tmp 2>&1
+
+# remove logs over 30 days old...
+find $logRoot.* -mtime +30 | 2>/dev/null xargs -r rm -- >> $tmp 2>&1
+echo "" >> $tmp 2>&1
+
+# is restart required...
+msg=$(grep "restart required" /etc/motd)
+check=$(grep -c "restart required" /etc/motd)
+echo "MSG: $msg" >> $log 2>&1
+if [ $check -ne 0 ]
+then
+  echo "REBOOT" >> $log 2>&1
+else
+  echo "OK" >> $log 2>&1
+fi
+echo "" >> $log 2>&1
+
+echo "Errors?..." >> $log 2>&1
+grep -i "error" $tmp >> $log 2>&1
+echo "-- END OF ERRORS --" >> $log 2>&1
+echo "" >> $log 2>&1
+
+echo "Update Log..." >> $log 2>&1
+
+cat $tmp >> $log
+cp $log "$logRoot.log"
+
+cat $log | /usr/local/bin/mailto.py "$host update script..."
+

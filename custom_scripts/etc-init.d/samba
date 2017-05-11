@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# script to setup samba (AD DC)
+# can't get /etc/init.d/samba-ad-dc to run ???
+
+
+### BEGIN INIT INFO
+# Provides:  samba
+# Required-Start:
+# Required-Stop:
+# Should-Start:
+# Should-Stop:
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: Start and Stop Samba
+# Description:  samba initialization script
+### END INIT INFO
+
+# parameters...
+NAME=samba
+PROMPT="${NAME} Version 4"
+SCRIPT=/usr/local/samba/sbin/samba
+KILL="killall"
+RC=/usr/sbin/update-rc.d
+
+
+case "$1" in
+        start)
+                echo "Starting $PROMPT ($SCRIPT) service..."
+                $SCRIPT
+                sleep 3
+                $0 status
+        ;;
+        stop)
+                echo "Shutting down $PROMPT service..."
+                $KILL $NAME
+		sleep 3
+                $0 status
+        ;;
+        status)
+                STATUS=$(ps auxf | sed -n -e 1p -e "/$NAME/I"p | grep -v $0 | grep -v sed)
+                echo "$STATUS"
+        ;;
+        restart)
+                $0 stop
+		sleep 1
+		$0 start
+        ;;
+        auto)
+                case "$2" in
+                        start)
+                                $RC $NAME defaults
+                        ;;
+                        stop)
+                                $RC $NAME remove
+                        ;;
+                        *)
+                                $0
+                        ;;
+                esac
+        ;;
+        *)
+                echo "Usage: $0 start|stop|status|restart|(auto start|auto)|stop"
+                exit 1
+        ;;
+esac
+

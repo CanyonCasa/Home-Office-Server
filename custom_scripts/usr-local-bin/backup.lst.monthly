@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# updated: 20170228 dvc
+
+# options
+#	a = rlptgoD
+#	recursive, links, permissions, times, groups, owner, devices.
+#	v -> verbose
+#	z -> compress transfer
+#	R -> relative paths
+#	-no- -> turn off any options
+
+
+echo "MONTHLY BACK UP SCRIPT..."
+
+# system configuration files...
+rsync -avzR /etc $backup/monthly/$month/
+#rsync -avzR /etc/init.d $backup/monthly/$month/
+
+# custom local scripts and cnfiguration...
+rsync -avzR /usr/local/bin $backup/monthly/$month/
+rsync -avzR /usr/local/etc $backup/monthly/$month/
+
+# home folders
+rsync -avzR /home $backup/monthly/$month/
+
+# web code and databases...
+#rsync -avzR /home/js/bin $backup/monthly/$month/
+#rsync -avzR /home/js/logs $backup/monthly/$month/
+#rsync -avzR /home/js/restricted $backup/monthly/$month/
+#rsync -avzR /home/js/sites $backup/monthly/$month/
+#rsync -avzR /home/js/change.log $backup/monthly/$month/
+
+echo "... BACKUP COMPLETE"

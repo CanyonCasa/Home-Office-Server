@@ -1,0 +1,120 @@
+#!/bin/bash
+
+# Raspberry Pi SD Card backup script...
+
+# define default paramaters -- must be customized per installation!!!
+# Assumes a usb mounted SD card with Raspian installed for backup as...
+clone="usb-Generic_Mass-Storage-0:0"
+# with two mount points...
+clone_mnts="/mnt/os_clone"
+boot="/mnt/os_clone/boot"
+root="/mnt/os_clone/root"
+
+# define default paramaters
+e=`date +_%Y%m%d_%H%M%S`
+logRoot="/tmp/sd_backup"
+logBase="$logRoot.log"
+log="$logRoot$e.log"
+
+
+### backup procedure...
+echo "### [$HOSTNAME] SC CARD BACKUP BEGUN: `date`" > $log 2>&1
+echo $0 >> $log 2>&1
+echo >> $log 2>&1
+
+# check mountpoints exist
+if [ ! -d $clone_mnts ]
+then
+  mkdir $clone_mnts
+  echo clone mountpoint $clone_mnts created!
+fi
+if [ ! -d $boot ]
+then
+  mkdir $boot
+  echo boot clone mountpoint $boot created!
+fi
+if [ ! -d $root ]
+then
+  mkdir $root
+  echo boot clone mountpoint $root created!
+fi
+
+# mount the boot and root partitions of the clone, assumes NOOB partitions
+echo "mounting clone partitions..." >> $log 2>&1
+mount /dev/disk/by-id/$clone-part6 $boot >> $log 2>&1
+mount /dev/disk/by-id/$clone-part7 $root >> $log 2>&1
+echo >> $log 2>&1
+
+# mirror the /boot partition of the main sd card to the clone partition
+echo "mirroring /boot partition..." >> $log 2>&1
+rsync -aHv --delete /boot/* $boot/ >> $log 2>&1
+echo >> $log 2>&1
+
+# mirror the / partition (root) of the main sd card to the clone partition
+echo >> $log 2>&1
+echo "mirroring /, i.e. root, partition..." >> $log 2>&1
+# exclude root areas: /backup, /boot, /dev /lost+found, /media, /mnt, /proc, /run, /sys, /tmp
+echo >> $log 2>&1
+echo "# mirroring /bin..." >> $log 2>&1
+rsync -aHv --delete /bin/ $root/bin/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /etc..." >> $log 2>&1
+rsync -aHv --delete /etc/ $root/etc/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /home..." >> $log 2>&1
+rsync -aHv --delete /home/ $root/home/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /lib..." >> $log 2>&1
+rsync -aHv --delete /lib/ $root/lib/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /man..." >> $log 2>&1
+rsync -aHv --delete /man/ $root/man/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /opt..." >> $log 2>&1
+rsync -aHv --delete /opt/ $root/opt/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /root..." >> $log 2>&1
+rsync -aHv --delete /root/ $root/root/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /sbin..." >> $log 2>&1
+rsync -aHv --delete /sbin/ $root/sbin/ >> $log 2>&1
+echo >> $log 2>&1
+#echo "# mirroring /selinux..." >> $log 2>&1
+#rsync -aHv --delete /selinux/ $root/selinux/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /srv..." >> $log 2>&1
+rsync -aHv --delete /srv/ $root/srv/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /usr..." >> $log 2>&1
+rsync -aHv --delete /usr/ $root/usr/ >> $log 2>&1
+echo >> $log 2>&1
+echo "# mirroring /var..." >> $log 2>&1
+rsync -aHv --delete /var/ $root/var/ >> $log 2>&1
+echo >> $log 2>&1
+echo "checking mounts..." >> $log 2>&1
+rsync -lptgodv --delete /mnt/* $root/mnt/ >> $log 2>&1
+echo >> $log 2>&1
+echo >> $log 2>&1
+echo "checking symbolic links..." >> $log 2>&1
+for s in $( find / -maxdepth 1 -type l ); do
+    if [ ! -e $root$s ]; then
+        echo "creating symbolic link: $root$s" >> $log 2>&1
+        ln -s $(readlink -f $s) $root$s
+    fi
+done
+
+
+# unmount partitions...
+echo >> $log 2>&1
+echo "unmounting partitions..." >> $log 2>&1
+umount $boot >> $log 2>&1
+umount $root >> $log 2>&1
+echo >> $log 2>&1
+
+#cleanup tmp files
+find $logRoot* -mtime +30 | 2>/dev/null xargs -r rm -- >> $log 2>&1
+
+# report log...
+cp $log $logBase
+cat $log | /usr/local/bin/mailto.py "SD CARD BACKUP[$HOSTNAME]"
+

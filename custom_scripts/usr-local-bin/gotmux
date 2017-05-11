@@ -1,0 +1,12 @@
+#!/bin/bash
+# start user specific tmux session
+
+who=${1-$USER}
+echo "WHO: '$who'"
+
+if [ "$who" == "$USER" ]; then
+    tmux attach-session -t $who
+else
+    su $who -c "tmux attach-session -t $who"
+fi
+

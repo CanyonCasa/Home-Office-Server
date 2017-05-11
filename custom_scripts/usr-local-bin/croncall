@@ -1,0 +1,21 @@
+#!/bin/bash
+# wrapper script to call and log cron jobs
+
+
+d=`date`
+log='/tmp/croncall.log'
+vlog='/var/log/croncall.log'
+
+echo "[$d] $*" >> $log 2>&1
+
+# set a working path since cron does not run in a shell...
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+#echo "  PATH: $PATH" >> $log 2>&1
+
+# save a truncated version (as tmp clears on power cycle)
+tail -n 40 $log > $vlog
+
+# call the task script with any parameters... 
+# $* = $1 ...
+$*
+

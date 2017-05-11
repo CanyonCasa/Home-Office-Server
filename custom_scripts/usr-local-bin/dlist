@@ -1,0 +1,8 @@
+#!/bin/bash
+
+d=${1:-`pwd`}
+
+echo $d
+
+sudo du -h $d  2>&1 |  grep '[0-9]\{2,3\}\+M\|^[0-9\.]\+G' | sort -h
+

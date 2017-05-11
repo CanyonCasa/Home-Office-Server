@@ -1,0 +1,4 @@
+#!/bin/bash
+# strip comments and blank lines from configuration files.
+
+grep "^[^#;].*$" $1

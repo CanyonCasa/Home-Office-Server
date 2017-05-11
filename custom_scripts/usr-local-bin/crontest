@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# script to test cron call
+
+d=`date +%s`
+log='/var/log/scripts/crontest.log'
+
+echo "$0 run $d" >> $log 2>&1
+sleep 3
+echo "PATH: $PATH" >> $log 2>&1
+#PATH=$PATH:/usr/local/bin
+#echo "PATH: $PATH" >> $log 2>&1
+sleep 3
+
+d2=`date +%s`
+
+elapsed=`expr $d2 - $d`
+
+echo
+echo ELAPSED: $elapsed
+echo Elapsed time : $(date -d "1970-01-01 $elapsed sec" +%H:%M:%S)
+echo
+
+#tail $log
+

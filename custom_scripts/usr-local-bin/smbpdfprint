@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# (c) 20090112 dave campbell
+# Phantom printer script to convert postscript printer output to PDF
+# tested with Apple Color Laserwriter 12/600 PS
+
+# commandline parameters...
+s=$1	# spooler file
+p=$2	# printer
+J=$3	# jobname 
+c=$4	# page count (always 0)
+z=$5	# file size
+U=$6	# uid
+I=$7	# ip address
+m=$8	# machine
+H=$9	# home
+
+#OUTPUTPATH=/mnt/users/$U/Desktop
+#OUTPUTPATH="/mnt/home/users/$U/My Documents"
+OUTPUTPATH="/mnt/tmp"
+LOG=/tmp/smbpdfprint.log
+FILENAME="$OUTPUTPATH/`date +%Y%m%d-%H%M%S`.pdf"
+
+# rename trails files...
+#if [[ "$J" =~ "trails" ]]
+#then
+#  FILENAME=`echo "$OUTPUTPATH/$J" | sed s/pub/pdf/ | tr [A-Z] [a-z]`
+#else
+#  FILENAME="$OUTPUTPATH/$U-`date +%Y%m%d-%H%M%S`.pdf"
+#fi
+#FILENAME=`echo $FILENAME | sed/[:]/_/`
+
+echo job ... [$0] >> $LOG
+  echo '  s = '$s >> $LOG
+  echo '  p = '$p >> $LOG
+  echo '  J = '$J >> $LOG
+  echo '  c = '$c >> $LOG
+  echo '  z = '$z >> $LOG
+  echo '  U = '$U >> $LOG
+  echo '  I = '$I >> $LOG
+  echo '  m = '$m >> $LOG
+  echo '  H = '$H >> $LOG
+
+echo converting "$s" to "$FILENAME" >> $LOG
+/usr/bin/ps2pdf -q $s "$FILENAME" >> $LOG 2>> $LOG
+echo conversion finished, removing $s >> $LOG
+rm $s
+echo done, setting permissions and notifing user >> $LOG
+chown www-data:$G "$FILENAME" >> $LOG
+chmod 744 "$FILENAME" >> $LOG
+#echo Your new PDF is called "$FILENAME". | smbclient -M $m
+echo All done. >> $LOG
+echo >> $LOG

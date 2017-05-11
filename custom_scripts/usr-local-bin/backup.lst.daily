@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# updated: 20170228 dvc
+
+# options
+#	a = rlptgoD
+#	recursive, links, permissions, times, groups, owner, devices.
+#	v -> verbose
+#	z -> compress transfer
+#	R -> relative paths
+#	-no- -> turn off any options
+
+
+echo "DAILY BACK UP SCRIPT..."
+
+# system configuration files...
+rsync -avzR /etc $backup/daily/$day/
+#rsync -avzR /etc/init.d $backup/daily/$day/
+
+# custom local scripts and cnfiguration...
+rsync -avzR /usr/local/bin $backup/daily/$day/
+rsync -avzR /usr/local/etc $backup/daily/$day/
+
+# home folders
+rsync -avzR /home $backup/daily/$day/
+
+# web code and databases...
+#rsync -avzR /home/js/bin $backup/daily/$day/
+#rsync -avzR /home/js/logs $backup/daily/$day/
+#rsync -avzR /home/js/restricted $backup/daily/$day/
+#rsync -avzR /home/js/sites $backup/daily/$day/
+#rsync -avzR /home/js/change.log $backup/daily/$day/
+
+echo "... BACKUP COMPLETE"

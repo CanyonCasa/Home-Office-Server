@@ -1,0 +1,13 @@
+#!/bin/bash
+# samba test printer script
+s=$1	# %s, spool file
+p=$2	# %p, printer
+J=$3	# %j, job name
+c=$4	# %c, page count
+z=$5	# %z, job size
+
+echo "NEW: `date`: spoolfile: $s" >> /tmp/smbprn.log; 
+echo "     p-$p J-$J c-$c z-$z" >> /tmp/smbprn.log;
+cat $s >> /tmp/smbprn.log
+echo $'\n'
+rm $s >> /tmp/smbprn.log 2>&1;

@@ -1,0 +1,11 @@
+#!/bin/bash
+# list and/or kill processes by name
+report=$(ps auxf | sed -n -e 1p -e "/$1/I"p | grep -v $0 | grep -v sed)
+echo "$report"
+
+if [ "$2" = "-kill" ]; then
+  killall -s SIGKILL $1 
+  fi
+
+[ -x "$report" ] || exit 1
+

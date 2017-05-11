@@ -1,0 +1,127 @@
+#!/bin/bash
+
+# linux backup script called from croncall...
+
+# script variables 
+# exported variables and environment variables can be substited in list files
+e=`date +%s`
+logRoot=/tmp/backup.log
+log="$logRoot.$e"
+list=${1:-daily}
+export host=`cat /etc/hostname`
+export mnt=${2:-/mnt/usb/backup}
+export backup="$mnt/$host"
+export day=`date +%A`
+export mday=`date +%d`
+export week=$((10#`date +%W` % 4))
+export month=`date +%B`
+export year=`date +%Y`
+
+
+if [ "$list" = "daily" ]; then
+  flist=/usr/local/bin/backup.lst.daily
+  fi
+if [ "$list" = "weekly" ]; then
+  flist=/usr/local/bin/backup.lst.weekly
+  fi
+if [ "$list" = "monthly" ]; then
+  flist=/usr/local/bin/backup.lst.monthly
+  fi
+if [ "$list" = "test" ]; then
+  flist=/usr/local/bin/backup.lst.test
+  fi
+echo "LIST: $list"
+
+echo "### [$USER] BACKUP BEGUN: `date`" >> $log 2>&1
+echo "# HOST:  $host" >> $log 2>&1
+echo "# LIST:  $list ($flist)" >> $log 2>&1
+echo "# DATE:  Week $week - $day, $mday $month $year" >> $log 2>&1
+echo  >> $log 2>&1
+
+
+# handle mounting of backup drive...
+mounted=0
+try=6
+n=0
+
+if [ $mnt = "offline" ]; then
+  disk="/dev/disk/by-label/offline"
+else
+  # assume using an existing locally mounted drive.
+  mounted=-1
+  fi
+
+echo "# DRIVE: $disk" >> $log 2>&1
+echo "# MOUNT: $mnt" >> $log 2>&1
+
+if [ $mounted -eq 0 ]; then
+  while [ $n -lt $try ];
+    do
+      #mount backup drive
+      mount -t ext4 $disk $mnt >> $log 2>&1
+      sleep 1
+      if ! grep -qs "$mnt" /etc/mtab
+      then
+        # failed to mount, retry
+        (( n = $n + 1 ))
+        #echo "###   BACKUP DRIVE[$disk] failed to mount on attempt $n."
+        echo "###   BACKUP DRIVE[$disk] failed to mount on attempt $n." >> $log 2>&1
+        sleep 9
+      else
+        #echo "###   BACKUP DRIVE[$disk] mounted."
+        echo "###   BACKUP DRIVE[$disk] mounted." >> $log 2>&1
+        sleep 1
+        ls -l $mnt >> $log 2>&1
+        (( n=$try ))
+        mounted=1
+        fi
+    done
+  fi
+
+if [ $mounted -eq 0 ]; then
+  echo "### BACKUP DRIVE[$disk] NOT READY: BACKUP ABORTED!" >> $log 2>&1
+else
+  echo "###   BACKUP DRIVE[$disk] ready as $mnt." >> $log 2>&1
+  # backup.lst.* contains list of specific backup operations
+
+  while read line;
+    do
+      # ignore comments lines...
+      line=`echo "$line" |sed "s/[ ^I]*#.*//"`
+      if [ -z "$line" ]; then continue; fi
+      # variable substitutions...
+      line=`echo $line | envsubst`
+      if ! [[ $line =~ "echo" ]]; then
+        echo "EXECUTING '$line' ..." >> $log 2>&1
+        fi
+        `$line >> $log 2>&1`
+      printf "\n\n" >> $log 2>&1
+    done < $flist
+
+  fi
+
+
+e2=`date +%s`
+echo "### BACKUP completed $d2" >> $log 2>&1
+elapsed=`expr $e2 - $e`
+
+echo "### ELAPSED TIME: $(date -d "1970-01-01 $elapsed sec" +%H:%M:%S)" >> $log 2>&1
+
+#  save log....
+cp $log $mnt/$list.log
+
+# unmount offline backup area...
+if [ $mounted -eq 1 ]; then
+  # umount drive
+  ls -l $mnt >> $log 2>&1
+  sleep 2
+  umount $mnt
+  echo "### UMOUNTED DRIVE $disk" >> $log 2>&1
+  fi
+
+#cleanup tmp files
+find $logRoot* -mtime +30 | 2>/dev/null xargs -r rm -- >> $log 2>&1
+
+# report log...
+cp $log $logRoot
+cat $log | /usr/local/bin/mailto.py "BACKUP[$host] -> $list"

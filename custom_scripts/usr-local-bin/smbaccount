@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# common script for adding, modifying, or deleteing accounts for users, 
+# groups and machine accounts for samba
+
+# syntax ...
+#   smbaccount add|delete|rename|join|quit|set|shares [user|group|machine] <variable1> [<variable2>]
+
+#   for example...
+#     smbaccount add user <user> <"full name">
+#     smbaccount delete user <user>
+#     smbaccount rename user <olduser> <newuser> 
+
+#     smbaccount add group <group>
+#     smbaccount delete group <group>
+#     smbaccount join group <group> <user>
+#     smbaccount quit group <group> <user>
+#     smbaccount set group <group> <user>
+
+#     smbaccount add machine <machine> <"comment for machine">
+#     smbaccount delete machine <machine>
+#     smbaccount modify machine <machine>
+#     smbaccount view machine <machine>
+
+#     smbaccount modify group <group>
+
+#     smbaccount list [<user>]
+#     smbaccount verbose [<user>]
+#     smbaccount view [<machine>]
+#     smbaccount status
+#     smbaccount share[s] <machine>
+# ...
+
+# retrieve conditions...
+op=$1
+obj=$2
+var1=$3
+var2=$4
+
+case $obj in
+  user) 
+    password='Temp1234'
+    case $op in
+      add)
+        useradd -s /bin/bash $var1 -p $password -c "$var2" 
+	echo -e "Temp1234\nTemp1234" | smbpasswd -s -a $var1
+        addgroup $var1 ntusers
+        addgroup $var1 users
+      ;;
+      delete)
+	smbpasswd -x $var1
+        deluser $var1
+      ;;
+      rename)
+        usermod -l $var1 $var2
+      ;;
+      list)
+        pdbedit -Ld0 $var1
+      ;;
+      verbose)
+        pdbedit -Lvd0 $var1
+      ;;
+      comment)
+        usermod -c "$var2" $var1
+        cat /etc/passwd | grep $var1
+        pdbedit -d0 -u $var1 -f "$var2"
+      ;;
+      *)
+      echo "?:$*"
+      sed -n '/^# syntax/','/^# \.\.\./'p $0
+      ;;
+    esac
+  ;;
+  group) 
+    echo "GROUP"
+    case $op in
+      add)
+        addgroup $var1 
+      ;;
+      delete)
+        delgroup $var1
+      ;;
+      join)
+        addgroup $var2 $var1
+      ;;
+      quit)
+        delgroup $var2 $var1
+      ;;
+      set)
+        usermod -g $var2 $var1
+      ;;
+      *)
+      echo "?:$*"
+      sed -n '/^# syntax/','/^# \.\.\./'p $0
+      ;;
+    esac
+  ;;
+  machine) 
+    machine=`echo $var1\$ | tr a-z A-Z`
+    case $op in
+      add)
+        useradd --group machines -d /dev/null -s /bin/false $machine -c "$var2"
+        passwd -l $machine
+        smbpasswd -a -m $machine
+      ;;
+      delete)
+        smbpasswd -x $machine
+        deluser $machine
+      ;;
+      list)
+        pdbedit -Ld0 $machine
+      ;;
+      verbose)
+        pdbedit -Lvd0 $machine
+      ;;
+      view)
+        smbclient -NL $var1
+      ;;
+      comment)
+        usermod -c "$var2" $machine
+        cat /etc/passwd | grep -F $machine
+        pdbedit -d0 -u $machine -f "$var2"
+      ;;
+      *)
+      echo "?:$*"
+      sed -n '/^# syntax/','/^# \.\.\./'p $0
+      ;;
+    esac
+  ;;
+  machines|users)
+    flags="-F"
+    if [ "$obj" = "users" ]; then 
+      flags="-Fv" 
+    fi
+    case $op in
+      list)
+        pdbedit -Ld0 | grep $flags "$"
+      ;;
+    esac
+  ;;
+  *)
+    case $op in
+      view)
+        smbclient -NL $obj
+      ;;
+      list)
+        pdbedit -Ld0 $obj
+      ;;
+      verbose)
+        pdbedit -Lvd0 $obj
+      ;;
+      share|shares)
+        smbclient -L $obj
+      ;;
+      status)
+        smbclient -L $HOSTNAME -n
+        smbstatus -d 0
+      ;;
+      *)
+        echo "?:$*"
+        sed -n '/^# syntax/','/^# \.\.\./'p $0
+      ;;
+    esac
+  ;;
+esac
+
+
