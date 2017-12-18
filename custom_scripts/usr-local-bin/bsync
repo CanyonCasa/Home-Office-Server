@@ -6,18 +6,6 @@
 #   2. Or copies boot and root OS partions to clone disk
 #   3. Or makes a clone image
 
-# default configuration
-dflt="/usr/local/etc/bsync.conf"
-
-# SYNTAX:
-if [[ $1 =~ '-h' ]]; then
-  echo "bsync -h|script_tag [configuration_file]"
-  echo "  default configuration: $dflt"
-  exit
-fi
-
-# links to configuration data file ...
-export data=${$2:-$dflt}
 
 # functions...
 export db=0	# debug flag: -1: stdout, 0: logfile, 1: logfile & stdout
@@ -42,12 +30,28 @@ dbgx () {
   esac
 }
 
+
 # script variables...
 #   exported variables and environment variables can be substituted
 #   in sync scripts configurations and commands
-export abort=0
+
 # tag identifies specific sections in configuration/command data file.
 export tag=${1:-test}	# default to test, if not specified
+
+# default configuration
+dflt="/usr/local/etc/bsync.conf"
+# link to configuration data file ...
+export data=${2:-$dflt}
+
+# SYNTAX:
+if [[ $1 =~ '-h' ]]; then
+  echo "bsync -h|script_tag [configuration_file]"
+  echo "  default configuration: $dflt"
+  exit
+fi
+
+# bypass flag
+export abort=0
 
 #create a unique log filename...
 e=`date +%s`
@@ -84,6 +88,7 @@ for cfg in "dflt-cfg" "$tag-cfg"
 # setup script stuff...
 title=$( echo "### [$HOSTNAME] $tag SYNC BEGUN..." | tr a-z A-Z )
 dbg $title
+dbg "USING DATA: $data"
 dbg "# DATE: Week $week [$wk] - $day, $mday $month [$mon] $year"
 dbg
 
