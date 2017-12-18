@@ -7,19 +7,48 @@ d=`date`
 logRoot='/tmp/update'
 tmp="$logRoot.tmp"
 log="$logRoot.$e"
-host=`cat /etc/hostname`
 
-echo "$0 RUN $d with $PATH" > $log 2>&1
+echo "$0 RUN $d" > $log 2>&1
 echo "" >> $log 2>&1
+
+# report disk status...
+echo "PRE-RUN disk status..." >> $log 2>&1
+#du -s /tmp /var /usr /mnt /opt >> $log 2>/dev/null
+df -B M --total -x tmpfs -x devtmpfs >> $log 2>/dev/null
+echo "" >> $log 2>&1
+
 # run system update...
+echo "Performing system update..." >> $log 2>&1
+echo "  Refresh the repository list..." >> $log 2>&1
 apt-get update -y > $tmp 2>&1
+echo "  Upgrade packages..." >> $log 2>&1
 apt-get upgrade -y >> $tmp 2>&1
-echo "" >> $tmp 2>&1
+echo "  Cleanup and remove old packages..." >> $log 2>&1
+apt-get clean -y >> $tmp 2>&1
+apt-get autoremove -y >> $tmp 2>&1
 echo "" >> $tmp 2>&1
 
-# remove logs over 30 days old...
-find $logRoot.* -mtime +30 | 2>/dev/null xargs -r rm -- >> $tmp 2>&1
-echo "" >> $tmp 2>&1
+# report disk status...
+echo "POST-RUN disk status..." >> $log 2>&1
+#du -s /tmp /var /usr /mnt /opt >> $log 2>/dev/null
+df -B M --total -x tmpfs -x devtmpfs >> $log 2>/dev/null
+echo "" >> $log 2>&1
+
+# restart samba daemon to free held disk space...
+used=`df | grep "/dev/root" | tr -s ' ' | cut -d ' ' -f 5 | tr -d '%'`
+if [ $used \> 75 ];
+then
+  /etc/init.d/samba restart >> $tmp 2>&1
+  # report disk status...
+  echo "POST SAMBA RESTART disk status..." >> $log 2>&1
+  #du -s /tmp /var /usr /mnt /opt >> $log 2>/dev/null
+  du -hxd1 / >> $log 2>/dev/null
+  df -h --total -x tmpfs -x devtmpfs >> $log 2>/dev/null
+  echo "" >> $log 2>&1;
+else
+  echo 'no restart performed ...';
+fi;
+
 
 # is restart required...
 msg=$(grep "restart required" /etc/motd)
@@ -38,10 +67,20 @@ grep -i "error" $tmp >> $log 2>&1
 echo "-- END OF ERRORS --" >> $log 2>&1
 echo "" >> $log 2>&1
 
+# compute and report elasped time...
+elapsed=$(date -d "1970-01-01 `expr $(date +%s) - $e` sec" +%H:%M:%S)
+echo "### UPDATE COMPLETED! ELAPSED TIME: $elapsed" >> $log 2>&1
+
 echo "Update Log..." >> $log 2>&1
 
 cat $tmp >> $log
 cp $log "$logRoot.log"
 
-cat $log | /usr/local/bin/mailto.py "$host update script..."
+# remove logs over 30 days old...
+find $logRoot.* -mtime +30 | 2>/dev/null xargs -r rm -- >> $tmp 2>&1
+echo "" >> $tmp 2>&1
+
+# send notification email...
+subj=$( echo $HOSTNAME update script... | tr a-z A-Z )
+cat $log | /usr/local/bin/mailto.py "$subj"
 

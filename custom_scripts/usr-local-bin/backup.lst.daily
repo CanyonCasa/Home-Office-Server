@@ -10,8 +10,7 @@
 #	R -> relative paths
 #	-no- -> turn off any options
 
-
-echo "DAILY BACK UP SCRIPT..."
+echo "$descriptor DAILY BACK UP SCRIPT..."
 
 # system configuration files...
 rsync -avzR /etc $backup/daily/$day/
@@ -20,6 +19,7 @@ rsync -avzR /etc $backup/daily/$day/
 # custom local scripts and cnfiguration...
 rsync -avzR /usr/local/bin $backup/daily/$day/
 rsync -avzR /usr/local/etc $backup/daily/$day/
+rsync -avzR /usr/local/samba $backup/daily/$day/
 
 # home folders
 rsync -avzR /home $backup/daily/$day/

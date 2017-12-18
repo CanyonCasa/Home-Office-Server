@@ -10,8 +10,7 @@
 #	R -> relative paths
 #	-no- -> turn off any options
 
-
-echo "WEEKLY BACK UP SCRIPT..."
+echo "$descriptor WEEKLY BACK UP SCRIPT..."
 
 # system configuration files...
 rsync -avzR /etc $backup/weekly/$week/
@@ -20,6 +19,7 @@ rsync -avzR /etc $backup/weekly/$week/
 # custom local scripts and cnfiguration...
 rsync -avzR /usr/local/bin $backup/weekly/$week/
 rsync -avzR /usr/local/etc $backup/weekly/$week/
+rsync -avzR /usr/local/samba $backup/weekly/$week/
 
 # home folders
 rsync -avzR /home $backup/weekly/$week/
