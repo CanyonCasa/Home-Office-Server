@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# updted: 20170228 dvc
+
+# options
+#	a = rlptgoD
+#	recursive, links, permissions, times, groups, owner, devices.
+#	v -> verbose
+#	z -> compress transfer
+#	R -> relative paths
+#	-no- -> turn off any options
+
+
+echo "HOME FILE SERVER BACK UP SCRIPT..."
+
+# personal folders...
+rsync -avz --delete /mnt/datos/archived $mnt/datos
+rsync -avz --delete /mnt/datos/home $mnt/datos
+rsync -avz --delete /mnt/datos/webs $mnt/datos
+rsync -avz --delete /mnt/datos/Saranam $mnt/datos
+
+#media/folders...
+rsync -avz --delete /mnt/datos/media/magazines $mnt/datos/media
+rsync -avz --delete /mnt/datos/media/music $mnt/datos/media
+#rsync -avz --delete --exclude 'family/Baby/***' --exclude 'family/Patrick\'s Camera/***' --exclude 'Thumbs.db' /mnt/datos/media/pictures $mnt/datos/media
+#rsync -avz --delete --exclude "family/Baby/" --exclude "Patrick\'s Camera/**" --exclude "Thumbs.db" /mnt/datos/media/pictures $mnt/datos/media
+rsync -avz --delete --exclude 'family/Baby/' --exclude 'Patrick Travel/' --exclude 'Thumbs.db' /mnt/datos/media/pictures $mnt/datos/media
+
+find . -name "Thumbs.db" -delete
+
+echo "... BACKUP COMPLETE"
+

@@ -1,0 +1,32 @@
+#!/bin/bash
+# makes a backup img of the clone disk
+
+start=`date +%s`
+d=`date +%Y%m%d`
+name=$HOSTNAME-$d
+log=/tmp/backup_img-$name.log
+
+# disk IDs specific to server...
+# clone source disk
+src=/dev/disk/by-id/usb-Generic_STORAGE_DEVICE_000000000272-0:0
+# image destination file
+img=/mnt/datos/source/Linux/Raspian/$name.gz
+
+# log info...
+echo "### BACKUP IMAGE CREATION BEGUN: `date`" > $log 2>&1
+echo "# HOST:   $host" >> $log 2>&1
+echo "# SOURCE: $src" >> $log 2>&1
+echo "# IMAGE:  $img" >> $log 2>&1
+echo "# LOG:    $log" >> $log 2>&1
+echo  >> $log 2>&1
+
+# image creation...
+dd if=$src bs=4K | gzip > $img
+
+stop=`date +%s`
+elapsed=`expr $stop - $start`
+echo "### ELAPSED TIME: $(date -d "1970-01-01 $elapsed sec" +%H:%M:%S)" >> $log 2>&1
+
+subj=`echo "IMG BACKUP[$host]: $name" | tr a-z A-Z`
+cat $log | /usr/local/bin/mailto.py "$subj"
+

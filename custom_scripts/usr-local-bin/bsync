@@ -1,0 +1,252 @@
+#!/bin/bash
+#/usr/local/bin/bsync
+
+# generic script for performing backup/sync based on command scripts ...
+#   1. Performs general file backup from source to destination
+#   2. Or copies boot and root OS partions to clone disk
+#   3. Or makes a clone image
+
+# default configuration
+dflt="/usr/local/etc/bsync.conf"
+
+# SYNTAX:
+if [[ $1 =~ '-h' ]]; then
+  echo "bsync -h|script_tag [configuration_file]"
+  echo "  default configuration: $dflt"
+  exit
+fi
+
+# links to configuration data file ...
+export data=${$2:-$dflt}
+
+# functions...
+export db=0	# debug flag: -1: stdout, 0: logfile, 1: logfile & stdout
+#debug echo...
+dbg () {
+  if [[ $db -ne -1 ]]; then echo $* >> $log 2>&1; fi
+  if [[ $db -ne 0 ]]; then echo $*; fi
+}
+# debug execute...
+dbgx () {
+##  echo "LINE: $*"
+  case $db in
+    -1)
+      $* 2>&1
+      ;;
+    0)
+      $* 2>&1 >> $log
+      ;;
+    1)
+      $* 2>&1 | tee -a $log
+      ;;
+  esac
+}
+
+# script variables...
+#   exported variables and environment variables can be substituted
+#   in sync scripts configurations and commands
+export abort=0
+# tag identifies specific sections in configuration/command data file.
+export tag=${1:-test}	# default to test, if not specified
+
+#create a unique log filename...
+e=`date +%s`
+logRoot=/tmp/bsync-$tag.log
+export log="$logRoot.$e"
+touch $log
+dbg "Log: $log"
+
+# generate date info...
+export day=`date +%A`
+export mday=`date +%d`
+export week=$((10#`date +%W` % 4))
+export month=`date +%B`
+export year=`date +%Y`
+if [[ $((10#`date +%W` % 2)) -eq 0 ]];
+  then export wk="even";
+  else export wk="odd";
+fi
+if [[ $((10#`date +%m` % 2)) -eq 0 ]];
+  then export mon="even";
+  else export mon="odd";
+fi
+
+
+# SCRIPT ACTION BEGINS HERE...
+# source default and specified backup configurations variable declarations...
+for cfg in "dflt-cfg" "$tag-cfg"
+  do
+    dbg "# reading $cfg configuration..."
+    # parse section from cfg file and source as part of local script
+    source <(nawk "/^\[$cfg\]/{flg=1;next}/^\[/{flg=0}flg" $data)
+  done
+
+# setup script stuff...
+title=$( echo "### [$HOSTNAME] $tag SYNC BEGUN..." | tr a-z A-Z )
+dbg $title
+dbg "# DATE: Week $week [$wk] - $day, $mday $month [$mon] $year"
+dbg
+
+# report disk status...
+dbg "PRE-RUN disk status..."
+dbgx "df -B M --total -x tmpfs -x devtmpfs"
+dbg
+
+# if offline destination drive, mount it first...
+# requires $dev, $mnt, and $mount definitions in configuration section!
+if [[ $mount -eq 1 ]]; then
+  try=6
+  n=0
+  while [ $n -lt $try ];
+    do
+      # mount destination drive and give it a moment then test if ready
+      dbgx mount -t ext4 $dev $mnt
+      sleep 1
+      if ! grep -qs "$mnt" /etc/mtab
+      then
+        # failed to mount, retry
+        (( n = $n + 1 ))
+        dbg "###   BACKUP DRIVE[$dev] failed to mount on attempt $n."
+        sleep 9
+        if [[ $n -eq $try ]]; then
+          dbg "### BACKUP DRIVE[$dev] NOT READY: BACKUP ABORTED!"
+          abort=1
+        fi
+      else
+        # good to go
+        dbg "###   BACKUP DRIVE[$dev] successfully mounted as $mnt."
+        ls -l $mnt >> $log 2>&1
+        break
+      fi
+    done
+fi
+
+# PERFORM BACKUP COMMANDS...
+# requires $mode definition in configuration!
+# requires $dryrun definition in configuration!
+if [[ $abort -eq 0 ]]; then
+  case $mode in
+    image)
+      # create image from cloned OS device
+      # image destination file
+      img_name=$HOSTNAME-$e.img
+      img=$dest/$img_name.gz
+      # log info...
+      dbg "### $host IMAGE CREATION BEGUN: `date`"
+      dbg "# SOURCE: $src --> DEST: $img"
+      dbg "# LOG:    $log"
+      # image creation...
+      dd if=$src bs=4K | gzip > $img
+      subj=`echo "$HOSTNAME IMG CREATION: $name" | tr a-z A-Z`
+      ;;
+    clone)
+      if [ $os = 'raspian' ]; then
+        bpart='part1'
+        rpart='part2'
+      else
+        bpart='part6'
+        rpart='part7'
+      fi
+      ### clone procedure...
+      dbg "### $( echo [$HOSTNAME] $os | tr a-z A-Z ) CLONE BEGUN: `date`"
+      dbg "# LOG:    $log"
+      dbg "# CLONE: $dev"
+      dbg "# MOUNT: $mnt"
+      dbg "#   ROOT:  $rpart --> $mnt"
+      dbg "#   BOOT:  $bpart --> $mnt/boot"
+      dbg
+      # check mountpoint exist or create...
+      if [ ! -d $mnt ]; then
+        mkdir -p $mnt
+        dbg "clone mount $mnt created!"
+      fi
+      # mount the boot and root partitions of the clone
+      dbg "mounting clone root partition..."
+      dbgx mount $dev-$rpart $mnt
+      if [ ! -d $mnt/boot ]; then
+        mkdir $mnt/boot
+        dbg "clone boot mount $mnt/boot created!"
+      fi
+      dbg "mounting clone boot partition under clone root..."
+      dbgx mount $dev-$bpart $mnt/boot
+      # mirror / (root) of system to the clone root partition,
+      # excluding special system folders: /proc, /dev, ....
+      dbg "mirroring / (i.e. root) to clone device at $mnt ..."
+      # loop through the root_folders list...
+      for d in "${root_folders[@]}"
+        do
+          dbg "  mirroring folder /$d to $mnt/$d..."
+          dbgx rsync -aHv --delete /$d/ $mnt/$d/
+        done
+      dbg "checking root symbolic links..."
+      for s in $( find / -maxdepth 1 -type l )
+        do
+          if [ ! -e $mnt$s ]; then
+            dbg "  creating symbolic link: $mnt$s"
+            ln -s $(readlink -f $s) $mnt$s
+          fi
+        done
+      # report disk status...
+      dbg "POST CLONE disk status..."
+      dbgx "df -B M --total -x tmpfs -x devtmpfs"
+      dbg
+      # unmount partitions...
+      dbg "unmounting partitions..."
+      dbgx umount $mnt/boot
+      dbgx umount $mnt
+      subj=$( echo "$HOSTNAME $os CLONE" | tr a-z A-Z )
+      ;;
+    backup|*)
+      # requires $src and $dest definitions in configuration section!
+      dbg "###   BACKUP $src to $dest..."
+      # command script contains list of specific backup operations
+      while read line;
+        do
+          # ignore comments lines...
+          line=`echo "$line" | sed "s/[ ^I]*#.*//"`
+          if [ -z "$line" ]; then continue; fi
+          # variable substitutions...
+          line=`echo "$line" | envsubst`
+          if [[ $dryrun -eq 1 ]]; then line=`echo "$line" | sed "s/rsync/rsync -n/"`; fi
+          if ! [[ $line =~ "echo" ]]; then
+            dbg "EXECUTING '$line' ..."
+          fi
+          dbgx "$line"
+        done < <(nawk "/^\[$tag\]/{flg=1;next}/^\[/{flg=0}flg" $data)
+      dbg
+      dbg
+      # report disk status...
+      dbg "POST-BACKUP disk status..."
+      dbgx "df -B M --total -x tmpfs -x devtmpfs"
+      dbg
+      subj=$( echo $HOSTNAME $desc BACKUP | tr a-z A-Z )
+      ;;
+  esac
+fi
+
+
+# CLEANUP...
+# compute and report elasped time...
+elapsed=$(date -d "1970-01-01 `expr $(date +%s) - $e` sec" +%H:%M:%S)
+dbg "### BACKUP COMPLETED! ELAPSED TIME: $elapsed"
+
+# unmount offline backup area if defined...
+if [[ $mount -eq 1 ]]; then
+  # umount drive
+  ls -l $mnt >> $log 2>&1
+  sleep 2
+  umount $mnt >> $log 2>&1
+  mx=`mount | grep "$mnt" | awk 'NR==1{print $1}'`
+  if [[ ! -z $mx ]]; then
+    dbg "ERROR: $mnt [$mx] FAILED TO UNMOUNT!"
+  else
+    dbg "### SUCCESSFULLY UMOUNTED DRIVE $dev"
+  fi
+fi
+
+#cleanup older tmp files
+dbgx "find $logRoot* -mtime +30 -delete"
+
+# report log...
+cp $log $logRoot
+cat $log | /usr/local/bin/mailto.py "$subj"
