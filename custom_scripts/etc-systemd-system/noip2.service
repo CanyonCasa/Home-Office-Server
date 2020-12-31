@@ -1,0 +1,12 @@
+[Unit]
+Description=No-Ip Dynamic DNS Update Service
+After=network.target
+
+[Service]
+Type=forking
+#ExecStart=/usr/local/bin/noip2 -c /usr/local/etc/no-ip2.conf
+ExecStart=/usr/local/bin/noip2
+
+[Install]
+WantedBy=multi-user.target
+

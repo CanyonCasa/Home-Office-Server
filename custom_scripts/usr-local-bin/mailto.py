@@ -4,27 +4,39 @@ import sys
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import json
+from pprint import pprint
+
+# read default data: JSON object with fields for...
+  # subject: message subject line
+  # message: default message
+  # you: (default) TO address
+  # me: FROM address
+  # server: SMTP server host
+  # port: SMTP server port
+  # username: SMTP username
+  # pw: SMTP login password
+data = json.load(open('/usr/local/etc/mailto.json'))
+#pprint(data)
 
 # compose fields...
-subject = "SERVER SCRIPT: " + sys.argv[1]
+if len(sys.argv)>1:
+  data["subject"] = sys.argv[1]
 if len(sys.argv)>2:
-  you = ','.join(sys.argv[2:])
-else:
-  you = "********"
-me = "********"
-server = "mail.noip.com"
-port = "465"
-username = "********"
-pw = "********"
-message = ''
+  data["you"] = ','.join(sys.argv[2:])
+
+# get message from input stream...
 for line in sys.stdin:
-  message += line
+  try:
+    data["message"] += line
+  except:
+    data["message"] += "************* SKIPPED UNICODE ERROR *************\n"
 
 # Create message container - the correct MIME type is multipart/alternative.
 msg = MIMEMultipart('alternative')
-msg['Subject'] = subject
-msg['From'] = me
-msg['To'] = you
+msg['Subject'] = data["subject"]
+msg['From'] = data["me"]
+msg['To'] = data["you"]
 
 # Create the body of the message (a plain-text and an HTML version).
 text = "Automatic script ..."
@@ -36,7 +48,7 @@ html = """\
     <pre>%s</pre>
   </body>
 </html>
-""" % (subject,message)
+""" % (data["subject"],data["message"])
 
 # Record the MIME types of both parts - text/plain and text/html.
 part1 = MIMEText(text, 'plain')
@@ -48,10 +60,16 @@ part2 = MIMEText(html, 'html')
 msg.attach(part1)
 msg.attach(part2)
 
+#pprint("")
+#pprint(msg)
+#pprint("")
+#pprint(data)
+#pprint(msg.as_string())
+
 # Send the message via local SMTP server.
-s = smtplib.SMTP_SSL(server,port)
-s.login(username,pw)
+s = smtplib.SMTP_SSL(data["server"],int(data["port"]))
+s.login(data["username"],data["pw"])
 # sendmail function takes 3 arguments: sender's address, recipient's address
 # and message to send - here it is sent as one string.
-s.sendmail(me, you, msg.as_string())
+s.sendmail(data["me"], data["you"], msg.as_string())
 s.quit()

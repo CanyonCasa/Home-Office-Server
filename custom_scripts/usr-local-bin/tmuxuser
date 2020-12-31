@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# script to setup terminal multiplexer (tmux) with session for each user with /home/$USER/.tmux.init
+# session named for user
+
+# parameters…
+SCRIPT=/usr/bin/tmux
+
+# find users  with .tmux.init
+declare -a who
+for u in $( ls /home ); do
+  if [ -e /home/$u/.tmux.init ]; then
+    who+=($u)
+  fi
+done
+
+# start or stop session per user...
+case "$1" in
+  start)
+    echo "Starting $SCRIPT service for $USER..."
+    for u in ${who[@]}; do
+      su $u -c "$SCRIPT -c /home/$u/.tmux.init"
+      echo "Started: /home/$u/.tmux.init"
+    done
+    sleep 1
+    $0 status
+  ;;
+  stop)
+    echo "Shutting down $SCRIPT service for $USER..."
+    su $USER -c "$SCRIPT kill-server"
+    $0 status
+  ;;
+  status)
+    STATUS=$(ps aux | sed -n -e 1p -e "/tmux/I"p | grep -v $0 | grep -v sed)
+    echo "$STATUS"
+  ;;
+esac
+

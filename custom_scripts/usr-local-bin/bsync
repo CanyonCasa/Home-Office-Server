@@ -34,6 +34,7 @@ dbgx () {
 # script variables...
 #   exported variables and environment variables can be substituted
 #   in sync scripts configurations and commands
+NL=$'\n'
 
 # tag identifies specific sections in configuration/command data file.
 export tag=${1:-test}	# default to test, if not specified
@@ -55,8 +56,9 @@ export abort=0
 
 #create a unique log filename...
 e=`date +%s`
-logRoot=/tmp/bsync-$tag.log
-export log="$logRoot.$e"
+dx=`date -u +%Y%m%dT%H%M%SZ`
+logRoot="/tmp/bsync-$tag"
+export log="$logRoot-$dx.log"
 touch $log
 dbg "Log: $log"
 
@@ -105,7 +107,7 @@ if [[ $mount -eq 1 ]]; then
   while [ $n -lt $try ];
     do
       # mount destination drive and give it a moment then test if ready
-      dbgx mount -t ext4 $dev $mnt
+      dbgx mount -t auto $dev $mnt -o $options
       sleep 1
       if ! grep -qs "$mnt" /etc/mtab
       then
@@ -134,7 +136,7 @@ if [[ $abort -eq 0 ]]; then
     image)
       # create image from cloned OS device
       # image destination file
-      img_name=$HOSTNAME-$e.img
+      img_name=$HOSTNAME-$dx.img
       img=$dest/$img_name.gz
       # log info...
       dbg "### $host IMAGE CREATION BEGUN: `date`"
@@ -227,6 +229,8 @@ if [[ $abort -eq 0 ]]; then
       subj=$( echo $HOSTNAME $desc BACKUP | tr a-z A-Z )
       ;;
   esac
+else
+  subj="$HOSTNAME BACKUP FAILURE"
 fi
 
 
@@ -253,5 +257,7 @@ fi
 dbgx "find $logRoot* -mtime +30 -delete"
 
 # report log...
-cp $log $logRoot
-cat $log | /usr/local/bin/mailto.py "$subj"
+#cat $log | /usr/local/bin/mailto.py "$subj"
+sms.py "$subj$NL[$log]" >> $log 2>&1
+#postlog $log "$subj" 0 $(echo $mode|tr a-z A-z)
+cp $log "$logRoot.log"

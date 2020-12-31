@@ -1,0 +1,12 @@
+[Unit]
+Documentation=https://tmuxguide.readthedocs.io/en/latest/tmux/tmux.html
+Description= tmux initialization per user based on /home/$USER/.tmux.init 
+
+[Service]
+Type=forking
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/tmuxuser start
+ExecStop=/usr/local/bin/tmuxuser stop
+
+[Install]
+WantedBy=multi-user.target

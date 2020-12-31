@@ -9,4 +9,3 @@ if [ "$who" == "$USER" ]; then
 else
     su $who -c "tmux attach-session -t $who"
 fi
-
